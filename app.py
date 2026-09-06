@@ -1,0 +1,86 @@
+from flask import Flask, render_template, request, jsonify, Response
+import random, re, sqlite3, os
+from datetime import datetime
+
+app = Flask(__name__)
+DB = "nickforge.db"
+
+STYLES = {
+    "cyber": ("Cyber", ["Neo","Cyber","Byte","Glitch","Neon","Zero","Hex","Nova","Vex","Syn"], ["404","X","2077","AI","Core","OS"]),
+    "dark": ("Dark", ["Void","Shadow","Night","Grim","Phantom","Raven","Abyss","Ghost","Dread","Noir"], ["X","Shade","Reaper","Soul","Wraith","666"]),
+    "pro": ("Pro", ["Clutch","Fury","Prime","Aim","Rush","Elite","Ace","Sharp","Peak","Rival"], ["GG","FPS","HD","OP","X","YT","TV"]),
+    "fantasy": ("Fantasy", ["Drake","Elder","Mystic","Rune","Fae","Dragon","Storm","Ember","Moon","Frost"], ["Lord","Knight","Mage","Born","Fang","Fire","Wolf","X"]),
+    "funny": ("Funny", ["Potato","Pickle","Goofy","Waffle","Bongo","Noodle","Chonky","Bonk","Muffin","Taco"], ["XD","Bro","Lol","King","GG","UwU"]),
+    "anime": ("Anime", ["Kage","Yuki","Akira","Ryu","Hoshi","Kuro","Sora","Ren","Kitsune","Shiro"], ["Senpai","Kun","Chan","X","Yoru","Zero"]),
+    "space": ("Space", ["Cosmo","Astro","Lunar","Orbit","Stellar","Mars","Solar","Quasar","Comet","Void"], ["X","Prime","Nova","Core","One","GG"]),
+    "royal": ("Royal", ["Royal","King","Crown","Duke","Lord","Emperor","Prince","Queen","Noble"], ["X","Prime","GG","VII","Elite"]),
+    "horror": ("Horror", ["Scream","Blood","Crypt","Doom","Haunt","Grave","Feral","Banshee","Rot","Wicked"], ["X","666","Night","Soul","Fang"]),
+    "luxury": ("Luxury", ["Velvet","Gold","Diamond","Luxe","Royal","Opal","Silk","Platinum","Pearl","Elite"], ["X","Prime","Club","One","VII"]),
+    "minimal": ("Minimal", ["Nox","Vex","Zed","Kyn","Lux","Zen","Rex","Nyx","Vyn","Axo"], ["X","7","9","0","Z","V","FX"])
+}
+
+def init_db():
+    con=sqlite3.connect(DB)
+    con.execute("CREATE TABLE IF NOT EXISTS generated (nickname TEXT PRIMARY KEY, created_at TEXT NOT NULL)")
+    con.commit(); con.close()
+
+def clean(v):
+    return re.sub(r"[^A-Za-z0-9]", "", v or "")[:15]
+
+def make_name(style, word="", separator=False, numbers=False):
+    _, prefixes, suffixes=STYLES.get(style, STYLES["cyber"])
+    word=clean(word)
+    p=random.choice(prefixes); s=random.choice(suffixes)
+    pool=[
+        f"{p}{s}", f"{p}{random.choice(['X','Z','V'])}{s}",
+        f"{p}{word}" if word else f"{p}{s}",
+        f"{word}{p}" if word else f"{p}{s}",
+        f"{p}{word}{s}" if word else f"{p}{s}",
+        f"{p}{random.randint(10,999)}"
+    ]
+    result=random.choice(pool)
+    if separator and len(result)>5:
+        pos=max(1,len(result)//2); result=result[:pos]+"_"+result[pos:]
+    if numbers and random.random()<.65:
+        result+=str(random.randint(1,999))
+    return result[:20]
+
+def unique_name(style,word,separator,numbers):
+    con=sqlite3.connect(DB)
+    for _ in range(100):
+        n=make_name(style,word,separator,numbers)
+        if not con.execute("SELECT 1 FROM generated WHERE nickname=?",(n,)).fetchone():
+            con.execute("INSERT INTO generated VALUES (?,?)",(n,datetime.utcnow().isoformat()))
+            con.commit(); con.close(); return n
+    con.close()
+    return make_name(style,word,separator,True)
+
+@app.route("/")
+def index():
+    return render_template("index.html", styles=STYLES)
+
+@app.post("/generate")
+def generate():
+    data=request.get_json(silent=True) or {}
+    style=data.get("style","cyber")
+    word=data.get("word","")
+    count=min(max(int(data.get("count",12)),1),50)
+    separator=bool(data.get("separator"))
+    numbers=bool(data.get("numbers"))
+    names=[]
+    while len(names)<count:
+        n=unique_name(style,word,separator,numbers)
+        if n not in names: names.append(n)
+    return jsonify(names=names)
+
+@app.get("/robots.txt")
+def robots():
+    return Response("User-agent: *\nAllow: /\nSitemap: https://nickforge.onrender.com/sitemap.xml\n",mimetype="text/plain")
+
+@app.get("/sitemap.xml")
+def sitemap():
+    return Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://nickforge.onrender.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url></urlset>',mimetype="application/xml")
+
+init_db()
+if __name__=="__main__":
+    app.run(host="0.0.0.0",port=int(os.environ.get("PORT",5000)))
