@@ -121,5 +121,14 @@ def generate():
     })
 
 
+@app.route("/google731813fef308ab0c.html")
+def google_verification():
+    return send_from_directory(".", "google731813fef308ab0c.html")
+
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        debug=False
+    )
