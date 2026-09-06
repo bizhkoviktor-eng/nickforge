@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NickForge — генератор никнеймов для игр</title>
+<meta name="description" content="Создавай стильные никнеймы для игр, Discord, TikTok и YouTube. Избранное, история, 11 стилей и мгновенная генерация.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://nickforge.onrender.com/">
+<meta property="og:title" content="NickForge — генератор никнеймов">
+<meta property="og:description" content="Создай свой следующий ник за секунду.">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="bg"></div>
+<main>
+<nav>
+<a class="logo" href="/"><b>NF</b> Nick<span>Forge</span></a><div class="top-links"><a href="/popular">🔥 Популярные</a></div>
+<div class="nav-actions"><button id="theme">☾</button><button id="favoritesNav">♥ <span id="favCount">0</span></button></div>
+</nav>
+
+<header>
+<div class="tag">⚡ NICKFORGE 3.0</div>
+<h1>Создай ник,<br><em>который запомнят.</em></h1>
+<p>Генератор уникальных никнеймов для игр, Discord, TikTok и YouTube.</p>
+</header>
+
+<section class="box">
+<div class="controls">
+<div class="section-head"><div><label>01 / STYLE</label><h2>Выбери стиль</h2></div><i>● LIVE</i></div>
+<div class="styles">
+{% for key,item in styles.items() %}<button class="style {% if key=='cyber' %}active{% endif %}" data-style="{{key}}">{{item[0]}}</button>{% endfor %}
+</div>
+<div class="inputs">
+<div><label>Ключевое слово <small>необязательно</small></label><input id="word" maxlength="15" placeholder="Например: Alex"></div>
+<div><label>Количество</label><select id="count"><option>6</option><option selected>12</option><option>24</option><option>36</option></select></div>
+</div>
+<div class="checks">
+<label><input id="separator" type="checkbox"><span></span> Разделители</label>
+<label><input id="numbers" type="checkbox"><span></span> Цифры</label>
+</div>
+<button id="generate" class="generate">⚡ СГЕНЕРИРОВАТЬ НИКИ</button>
+</div>
+<aside><label>SELECTED STYLE</label><strong id="preview">CYBER</strong><p>♥ Нажми на сердечко у ника, чтобы сохранить его.</p><div class="stats"><span><b id="sessionCount">0</b> создано</span><span><b id="favCount2">0</b> избранных</span></div></aside>
+</section>
+
+<div class="result-title"><div><label>02 / RESULTS</label><h2>Твои варианты</h2></div><div class="result-actions"><button id="copyAll">⧉ Все</button><button id="clearHistory">Очистить историю</button></div></div>
+<section id="results" class="results"></section>
+
+<section class="panel" id="favorites">
+<div class="section-head"><div><label>03 / FAVORITES</label><h2>Избранное <span id="favHeading">0</span></h2></div><button id="clearFav">Очистить</button></div>
+<div id="favList" class="fav-list"></div>
+</section>
+
+<section class="panel" id="history">
+<div class="section-head"><div><label>04 / HISTORY</label><h2>История генераций</h2></div></div>
+<div id="historyList" class="history-list"></div>
+</section>
+
+<section class="checker panel"><div class="section-head"><div><label>05 / CHECK</label><h2>Проверить ник</h2></div></div><div class="check-row"><input id="checkNick" placeholder="Введи ник для проверки"><button id="checkBtn">ПРОВЕРИТЬ</button></div><p id="checkResult" class="check-result">Проверка показывает только наличие ника в локальной базе NickForge, а не гарантирует свободный ник на Discord, Steam или других платформах.</p></section>
+
+<section class="seo">
+<h2>Генератор никнеймов онлайн</h2>
+<p>NickForge помогает быстро придумать игровой ник для Steam, Discord, Roblox, Minecraft, Valorant, TikTok и YouTube. Выбери стиль, добавь слово и получи десятки вариантов. Избранное и история сохраняются прямо в браузере.</p>
+</section>
+<footer>NickForge · Генерируй. Выбирай. Запоминай.</footer>
+</main>
+<script>
+let style="{{ preset|default("cyber") }}", names=[], session=0;
+const $=id=>document.getElementById(id);
+const getFav=()=>JSON.parse(localStorage.getItem("nf_fav")||"[]");
+const getHist=()=>JSON.parse(localStorage.getItem("nf_hist")||"[]");
+
+function refreshFav(){
+ const fav=getFav(); $("favCount").textContent=fav.length;$("favCount2").textContent=fav.length;$("favHeading").textContent=fav.length;
+ $("favList").innerHTML=fav.length?fav.map(n=>`<div class="fav"><b>${esc(n)}</b><button onclick="copy('${js(n)}',this)">COPY</button><button class="heart" onclick="toggleFav('${js(n)}')">♥</button></div>`).join(""):"<p class='empty'>Пока ничего нет. Сохрани понравившийся ник.</p>";
+}
+function toggleFav(n){let a=getFav();a=a.includes(n)?a.filter(x=>x!==n):[n,...a].slice(0,100);localStorage.setItem("nf_fav",JSON.stringify(a));refreshFav();renderCards();}
+function saveHist(list){let h=getHist();h.unshift({date:new Date().toLocaleString("ru-RU"),names:list});localStorage.setItem("nf_hist",JSON.stringify(h.slice(0,10)));renderHistory();}
+function renderHistory(){let h=getHist();$("historyList").innerHTML=h.length?h.map(x=>`<div class="hist"><span>${x.date}</span><b>${x.names.slice(0,4).map(esc).join(" · ")}${x.names.length>4?" …":""}</b></div>`).join(""):"<p class='empty'>История появится после первой генерации.</p>"}
+function renderCards(){
+ const fav=getFav();
+ $("results").innerHTML=names.map((n,i)=>`<article class="card"><span>${String(i+1).padStart(2,"0")}</span><b>${esc(n)}</b><button onclick="copy('${js(n)}',this)">COPY</button><button class="heart ${fav.includes(n)?"on":""}" onclick="toggleFav('${js(n)}')">${fav.includes(n)?"♥":"♡"}</button></article>`).join("");
+}
+async function generate(){
+ $("generate").disabled=true;$("generate").textContent="◌ ГЕНЕРАЦИЯ...";
+ try{
+  const r=await fetch("/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style,word:$("word").value,count:+$("count").value,separator:$("separator").checked,numbers:$("numbers").checked})});
+  names=(await r.json()).names;session+=names.length;$("sessionCount").textContent=session;renderCards();saveHist(names);
+ }catch(e){$("results").innerHTML="<div class='error'>Не удалось выполнить генерацию.</div>"}
+ $("generate").disabled=false;$("generate").textContent="⚡ СГЕНЕРИРОВАТЬ НИКИ";
+}
+function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML}
+function js(s){return s.replace(/\\/g,"\\\\").replace(/'/g,"\\'")}
+async function copy(n,b){await navigator.clipboard.writeText(n);fetch("/track",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nickname:n,event:"copy"})}).catch(()=>{});b.textContent="COPIED ✓";setTimeout(()=>b.textContent="COPY",900)}
+document.querySelectorAll(".style").forEach(b=>b.onclick=()=>{document.querySelectorAll(".style").forEach(x=>x.classList.remove("active"));b.classList.add("active");style=b.dataset.style;$("preview").textContent=style.toUpperCase();generate()});
+$("generate").onclick=generate;
+$("checkBtn").onclick=async()=>{const n=$("checkNick").value.trim(); if(!n){$("checkResult").textContent="Введите ник для проверки.";return;} const r=await fetch("/check?nickname="+encodeURIComponent(n)); const d=await r.json(); $("checkResult").textContent=d.ok?(d.local_used?"⚠️ "+d.message:"✅ "+d.message):d.message;};
+$("checkNick").onkeydown=e=>{if(e.key==="Enter")$("checkBtn").click()};$("word").onkeydown=e=>{if(e.key==="Enter")generate()};
+$("copyAll").onclick=async()=>{if(names.length){await navigator.clipboard.writeText(names.join("\n"));$("copyAll").textContent="✓ Скопировано";setTimeout(()=>$("copyAll").textContent="⧉ Все",1200)}};
+$("clearFav").onclick=()=>{localStorage.removeItem("nf_fav");refreshFav()};
+$("clearHistory").onclick=()=>{localStorage.removeItem("nf_hist");renderHistory()};
+$("favoritesNav").onclick=()=>$("favorites").scrollIntoView({behavior:"smooth"});
+$("theme").onclick=()=>{document.body.classList.toggle("light");localStorage.setItem("nf_light",document.body.classList.contains("light"));$("theme").textContent=document.body.classList.contains("light")?"☀":"☾"};
+if(localStorage.getItem("nf_light")==="true"){$("theme").click()}
+refreshFav();renderHistory();document.querySelectorAll(".style").forEach(b=>{if(b.dataset.style===style){document.querySelectorAll(".style").forEach(x=>x.classList.remove("active"));b.classList.add("active")}});$("preview").textContent=style.toUpperCase();generate();
+</script>
+</body>
+</html>
