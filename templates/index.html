@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>NickForge — Генератор никнеймов</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <header>
+            <div class="logo">NF</div>
+
+            <div>
+                <div class="small-title">GAMING • 2026</div>
+
+                <h1>Nick<span>Forge</span></h1>
+
+                <p>
+                    Генератор никнеймов для игр, Discord,
+                    TikTok и YouTube.
+                </p>
+            </div>
+        </header>
+
+
+        <section class="card">
+
+            <h2>Создай свой ник</h2>
+
+            <label>Выбери стиль</label>
+
+            <div class="styles">
+
+                <button class="style active"
+                        data-style="cool">
+                    ⚡ Cool
+                </button>
+
+                <button class="style"
+                        data-style="dark">
+                    ☠ Dark
+                </button>
+
+                <button class="style"
+                        data-style="pro">
+                    🎯 Pro
+                </button>
+
+                <button class="style"
+                        data-style="cyber">
+                    🤖 Cyber
+                </button>
+
+                <button class="style"
+                        data-style="fantasy">
+                    🐉 Fantasy
+                </button>
+
+                <button class="style"
+                        data-style="funny">
+                    😂 Funny
+                </button>
+
+            </div>
+
+
+            <label for="word">
+                Ключевое слово
+                <small>(необязательно)</small>
+            </label>
+
+            <input
+                id="word"
+                type="text"
+                maxlength="15"
+                placeholder="Например: Alex"
+            >
+
+
+            <div class="controls">
+
+                <div>
+                    <label for="count">
+                        Количество
+                    </label>
+
+                    <select id="count">
+                        <option value="6">6</option>
+                        <option value="12" selected>12</option>
+                        <option value="24">24</option>
+                        <option value="36">36</option>
+                    </select>
+                </div>
+
+
+                <button id="generate"
+                        class="generate">
+                    ⚡ Сгенерировать
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <div class="results-header">
+
+            <h2>Твои варианты</h2>
+
+            <button id="copyAll"
+                    class="copy-all">
+                Копировать все
+            </button>
+
+        </div>
+
+
+        <section id="results"
+                 class="results">
+        </section>
+
+
+        <footer>
+            NickForge — придумай ник, который запомнят 🎮
+        </footer>
+
+    </div>
+
+
+<script>
+
+let currentStyle = "cool";
+
+let currentNames = [];
+
+
+const generateButton =
+    document.getElementById("generate");
+
+const results =
+    document.getElementById("results");
+
+const word =
+    document.getElementById("word");
+
+const count =
+    document.getElementById("count");
+
+
+
+/* Выбор стиля */
+
+document
+    .querySelectorAll(".style")
+    .forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            document
+                .querySelectorAll(".style")
+                .forEach(btn =>
+                    btn.classList.remove("active")
+                );
+
+            button.classList.add("active");
+
+            currentStyle =
+                button.dataset.style;
+
+            generateNicknames();
+        });
+
+    });
+
+
+
+/* Генерация никнеймов */
+
+async function generateNicknames() {
+
+    generateButton.disabled = true;
+
+    generateButton.innerText =
+        "⏳ Генерирую...";
+
+
+    try {
+
+        const response =
+            await fetch("/generate", {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+
+                    style: currentStyle,
+
+                    word: word.value,
+
+                    count:
+                        Number(count.value)
+
+                })
+
+            });
+
+
+        const data =
+            await response.json();
+
+
+        currentNames =
+            data.names;
+
+
+        results.innerHTML = "";
+
+
+        currentNames.forEach(name => {
+
+            const card =
+                document.createElement("div");
+
+            card.className =
+                "nickname";
+
+
+            card.innerHTML = `
+
+                <span>${name}</span>
+
+                <button
+                    class="copy-button"
+                    title="Копировать">
+                    📋
+                </button>
+
+            `;
+
+
+            const copyButton =
+                card.querySelector(
+                    ".copy-button"
+                );
+
+
+            copyButton.addEventListener(
+                "click",
+                () => copyNickname(
+                    name,
+                    copyButton
+                )
+            );
+
+
+            results.appendChild(card);
+
+        });
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        results.innerHTML =
+            "<p>Ошибка генерации 😢</p>";
+
+    }
+
+
+    generateButton.disabled = false;
+
+    generateButton.innerText =
+        "⚡ Сгенерировать";
+}
+
+
+
+/* Копирование одного ника */
+
+async function copyNickname(
+    name,
+    button
+) {
+
+    try {
+
+        await navigator.clipboard
+            .writeText(name);
+
+        button.innerText = "✓";
+
+        setTimeout(() => {
+
+            button.innerText = "📋";
+
+        }, 1000);
+
+    } catch (error) {
+
+        alert(
+            "Не удалось скопировать ник"
+        );
+
+    }
+
+}
+
+
+
+/* Копировать все */
+
+document
+    .getElementById("copyAll")
+    .addEventListener(
+        "click",
+        async () => {
+
+            if (currentNames.length === 0) {
+                return;
+            }
+
+
+            await navigator.clipboard
+                .writeText(
+                    currentNames.join("\n")
+                );
+
+
+            const button =
+                document.getElementById(
+                    "copyAll"
+                );
+
+
+            const oldText =
+                button.innerText;
+
+
+            button.innerText =
+                "✓ Скопировано!";
+
+
+            setTimeout(() => {
+
+                button.innerText =
+                    oldText;
+
+            }, 1200);
+
+        }
+    );
+
+
+
+/* Enter в поле */
+
+word.addEventListener(
+    "keydown",
+    event => {
+
+        if (event.key === "Enter") {
+
+            generateNicknames();
+
+        }
+
+    }
+);
+
+
+
+/* Первая генерация */
+
+generateNicknames();
+
+</script>
+
+</body>
+</html>
